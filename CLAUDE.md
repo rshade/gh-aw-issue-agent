@@ -39,6 +39,11 @@ not.
 - A `GH_AW_GITHUB_TOKEN` PAT makes bot comments look human. The pre-filter
   and prompts identify the bot's own comments by marker plus Bot author or
   OWNER/MEMBER/COLLABORATOR association.
+- The bot-comment marker differs from the gh-aw docs. v0.93.5 emits
+  `gh-aw-workflow-call-id: <owner>/<repo>/<workflow>` and
+  `gh-aw-agentic-workflow: ..., workflow_id: <workflow>, ...`, not
+  `gh-aw-workflow-id:`. The pre-filter, both prompts and
+  `test/e2e/scenarios.sh` accept all three forms; keep them in sync.
 - Agents must call `noop` when they post nothing, or the run fails.
 - `status-comment: false` keeps `/spec` to one comment.
 - A local `gh aw add ./path` does not copy imports or resources, so

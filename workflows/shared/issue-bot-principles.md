@@ -97,8 +97,11 @@ example `author` and `authorAssociation` from
 
 A comment is a bot comment only when both are true:
 
-- Its text contains `gh-aw-workflow-id: issue-bot` (your own earlier
-  rounds) or `gh-aw-workflow-id: issue-bot-spec` (the spec workflow).
+- Its text contains an HTML comment naming the workflow:
+  `gh-aw-workflow-id: issue-bot`, `gh-aw-workflow-call-id: <owner>/<repo>/issue-bot`,
+  or `workflow_id: issue-bot` inside `gh-aw-agentic-workflow` (your own
+  earlier rounds); or the same with `issue-bot-spec` (the spec workflow).
+  `issue-bot` alone never means `issue-bot-spec` or a longer name.
 - Its author is a bot account, or its author association is `OWNER`,
   `MEMBER`, or `COLLABORATOR`. The bot usually posts as `github-actions`
   (`gh` shows `github-actions`, the API `github-actions[bot]`), often with

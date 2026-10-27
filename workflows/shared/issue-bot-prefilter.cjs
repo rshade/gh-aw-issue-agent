@@ -71,8 +71,16 @@ function parseConfig(text) {
   return { config, warnings };
 }
 
-const BOT_MARKER = /gh-aw-workflow-id:\s*issue-bot(-spec)?(?![\w-])/;
-const ROUND_MARKER = /gh-aw-workflow-id:\s*issue-bot(?![\w-])/;
+function markerFor(names) {
+  const w = `(?:${names.join('|')})(?![\\w-])`;
+  return new RegExp(
+    `gh-aw-workflow-id:\\s*${w}` +
+    `|gh-aw-workflow-call-id:\\s*[^\\s>]*/${w}` +
+    `|gh-aw-agentic-workflow:[^>]*\\bworkflow_id:\\s*${w}`);
+}
+
+const BOT_MARKER = markerFor(['issue-bot-spec', 'issue-bot']);
+const ROUND_MARKER = markerFor(['issue-bot']);
 
 const NOISE = new Set([
   '+1', '👍', 'bump', 'anyupdate', 'anyupdates', 'metoo', 'same', 'samehere',
