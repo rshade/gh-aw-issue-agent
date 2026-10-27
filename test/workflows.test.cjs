@@ -36,3 +36,15 @@ test('issue-bot: cannot write code or rewrite issues', () => {
   const fm = frontmatter('workflows/issue-bot.md');
   assert.doesNotMatch(fm, /create-pull-request|update-issue|edit:/);
 });
+
+const spec = frontmatter('workflows/issue-bot-spec.md');
+test('issue-bot-spec: maintainers only, via slash command', () => {
+  assert.match(spec, /slash_command:[\s\S]{0,40}name:\s*spec/);
+  assert.doesNotMatch(spec, /roles:\s*all/);
+  assert.match(spec, /min-integrity:\s*none/);
+});
+test('issue-bot-spec: PR is scoped to spec paths and does not close the issue', () => {
+  assert.match(spec, /allowed-files:.*"specs\/\*\*"/);
+  assert.match(spec, /allowed-files:.*"openspec\/changes\/\*\*"/);
+  assert.match(spec, /auto-close-issue:\s*false/);
+});
