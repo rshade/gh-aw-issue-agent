@@ -71,4 +71,57 @@ function parseConfig(text) {
   return { config, warnings };
 }
 
-module.exports = { parseConfig, DEFAULTS };
+const BOT_MARKER = /gh-aw-workflow-id:\s*issue-bot(-spec)?(?![\w-])/;
+const ROUND_MARKER = /gh-aw-workflow-id:\s*issue-bot(?![\w-])/;
+
+const NOISE = new Set([
+  '+1', '👍', 'bump', 'anyupdate', 'anyupdates', 'metoo', 'same', 'samehere',
+  'following', 'subscribe',
+]);
+const MAINTAINER_ASSOCIATIONS = new Set(['OWNER', 'MEMBER', 'COLLABORATOR']);
+
+const skip = (reason) => ({ go: false, mode: null, reason });
+const go = (mode, reason) => ({ go: true, mode, reason });
+
+function isNoise(body) {
+  const normalized = body.toLowerCase().replace(/[\s.,!?]/g, '');
+  return normalized === '' || NOISE.has(normalized);
+}
+
+function decide(event, config, rounds) {
+  const labels = event.issueLabels;
+  if (event.isPullRequest) return skip('pull-request');
+  if (labels.includes(config.labels.done)) return skip('spec-drafted');
+  if (labels.includes(config.labels.stop)) return skip('stopped');
+
+  if (event.name === 'issues') {
+    if (event.action === 'opened' && config.trigger === 'all') return go('first', 'opened');
+    if (event.action === 'labeled' && config.trigger === 'label' &&
+        event.labelAdded === config.triggerLabel && rounds === 0) {
+      return go('first', 'label-trigger');
+    }
+    return skip('issue-event');
+  }
+
+  const { comment } = event;
+  if (comment.authorType === 'Bot' || BOT_MARKER.test(comment.body)) return skip('own-comment');
+
+  const firstWord = comment.body.trim().split(/\s+/)[0];
+  if (firstWord === '/spec') return skip('spec-command');
+  if (firstWord === '/stop') {
+    const isFiler = comment.author.toLowerCase() === event.issueAuthor.toLowerCase();
+    return isFiler || MAINTAINER_ASSOCIATIONS.has(comment.association)
+      ? go('stop', 'stop')
+      : skip('stop-not-allowed');
+  }
+
+  if (isNoise(comment.body)) return skip('noise');
+  if (!labels.includes(config.labels.bug) && !labels.includes(config.labels.feature)) {
+    return skip('not-engaged');
+  }
+  if (rounds >= config.roundCap) return skip('round-cap');
+  if (labels.includes(config.labels.ready)) return go('post-ready', 'post-ready');
+  return go('round', 'round');
+}
+
+module.exports = { parseConfig, DEFAULTS, decide, BOT_MARKER, ROUND_MARKER };
