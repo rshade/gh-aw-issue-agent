@@ -1,0 +1,20 @@
+# Copy to .github/issue-bot.yml. Every key is optional; values shown are the defaults.
+
+# Which issues the bot engages: all (every new issue) or label (only issues given trigger-label).
+trigger: all
+# Label that starts the bot when trigger is label.
+trigger-label: needs-brainstorm
+# Maximum question rounds per issue, 1 to 10.
+round-cap: 3
+# Spec format for features: auto, spec-kit or openspec.
+spec-format: auto
+# Label applied to issues classified as bugs.
+label-bug: bug
+# Label applied to issues classified as features.
+label-feature: feature
+# Label added when the thread has enough detail for a maintainer to run /spec.
+label-ready: spec-ready
+# Label that silences the bot on an issue, same as /stop.
+label-stop: no-bot
+# Label added once the spec PR or bug report exists.
+label-done: spec-drafted

@@ -46,3 +46,11 @@ test('parseConfig does not mutate DEFAULTS', () => {
   assert.equal(DEFAULTS.roundCap, 3);
   assert.equal(parseConfig(null).config.labels.bug, 'bug');
 });
+
+test('examples/issue-bot.yml matches the defaults with no warnings', () => {
+  const text = require('node:fs').readFileSync(
+    require('node:path').join(__dirname, '..', 'examples', 'issue-bot.yml'), 'utf8');
+  const { config, warnings } = parseConfig(text);
+  assert.deepEqual(config, DEFAULTS);
+  assert.deepEqual(warnings, []);
+});

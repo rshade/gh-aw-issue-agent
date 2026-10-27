@@ -1,4 +1,4 @@
-.PHONY: test compile lint check
+.PHONY: test compile lint check smoke
 
 test:
 	node --test test/*.test.cjs
@@ -10,3 +10,6 @@ lint:
 	markdownlint-cli2 "**/*.md" "#node_modules" "#.superpowers"
 
 check: test compile lint
+
+smoke:
+	./scripts/install-smoke.sh
