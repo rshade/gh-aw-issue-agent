@@ -51,10 +51,20 @@ has_label() { issue_labels "$1" | grep -qxF "$2"; }
 
 issue_body() { gh api "repos/$DEMO_REPO/issues/$1" --jq .body; }
 
-bot_comment_ids() {
+# Comment markers differ by gh-aw version and context; match all three forms.
+# Keep in sync with markerFor() in workflows/shared/issue-bot-prefilter.cjs.
+# shellcheck disable=SC2016
+MARKER_JQ='def marked($w): (.body // "") | test("gh-aw-workflow-id:\\s*\($w)(?![\\w-])|gh-aw-workflow-call-id:\\s*[^\\s>]*/\($w)(?![\\w-])|gh-aw-agentic-workflow:[^>]*\\bworkflow_id:\\s*\($w)(?![\\w-])");'
+
+comments_select() {
   gh api --paginate "repos/$DEMO_REPO/issues/$1/comments" --jq \
-    '.[] | select((.body | contains("gh-aw-workflow-id: issue-bot")) and (.body | contains("gh-aw-workflow-id: issue-bot-spec") | not)) | .node_id'
+    "$MARKER_JQ"'.[] | select(marked("'"$2"'")) | '"$3"
 }
+
+bot_comment_ids() { comments_select "$1" issue-bot .node_id; }
+bot_comment_bodies() { comments_select "$1" issue-bot .body; }
+spec_comment_ids() { comments_select "$1" issue-bot-spec .node_id; }
+spec_comments() { comments_select "$1" issue-bot-spec .body; }
 
 bot_comments() {
   local out
@@ -62,20 +72,10 @@ bot_comments() {
   grep -c . <<<"$out" || true
 }
 
-bot_comment_bodies() {
-  gh api --paginate "repos/$DEMO_REPO/issues/$1/comments" --jq \
-    '.[] | select((.body | contains("gh-aw-workflow-id: issue-bot")) and (.body | contains("gh-aw-workflow-id: issue-bot-spec") | not)) | .body'
-}
-
-spec_comments() {
-  gh api --paginate "repos/$DEMO_REPO/issues/$1/comments" --jq \
-    '.[] | select(.body | contains("gh-aw-workflow-id: issue-bot-spec")) | .body'
-}
-
 spec_comment_count() {
   local out
-  out=$(spec_comments "$1") || return 1
-  grep -c 'gh-aw-workflow-id: issue-bot-spec' <<<"$out" || true
+  out=$(spec_comment_ids "$1") || return 1
+  grep -c . <<<"$out" || true
 }
 
 bot_comments_at_least() { (($(bot_comments "$1") >= $2)); }

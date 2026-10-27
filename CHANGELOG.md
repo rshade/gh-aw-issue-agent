@@ -25,3 +25,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   replaces a queued answer.
 - `/spec` on a feature whose spec PR already merged links it instead of
   drafting a new one.
+
+### Fixed
+
+- Recognize the comment markers gh-aw v0.93.5 actually emits
+  (`gh-aw-workflow-call-id` and `workflow_id` inside `gh-aw-agentic-workflow`)
+  as well as `gh-aw-workflow-id`. Without this, replies after round 1 were
+  skipped as `not-engaged` and the round cap never applied.

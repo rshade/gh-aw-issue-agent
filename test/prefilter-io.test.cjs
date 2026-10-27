@@ -48,6 +48,14 @@ test('counts only marked comments', () => {
     { body: '<!-- gh-aw-workflow-id: issue-bot-spec -->', user: { type: 'Bot' } }]), 1);
 });
 
+test('counts v0.93.5 call-id and agentic-workflow markers', () => {
+  const callId = '<!-- gh-aw-workflow-call-id: rshade/demo/issue-bot -->';
+  const agentic = '<!-- gh-aw-agentic-workflow: Issue bot, engine: copilot, id: 1, workflow_id: issue-bot, run: https://x -->';
+  assert.equal(countRounds([{ body: callId, user: { type: 'Bot' } },
+    { body: agentic, user: { type: 'Bot' } },
+    { body: '<!-- gh-aw-workflow-call-id: rshade/demo/issue-bot-spec -->', user: { type: 'Bot' } }]), 2);
+});
+
 test('a marker from a non-maintainer user is not counted', () => {
   assert.equal(countRounds([{ body: MARK, user: { type: 'User' }, author_association: 'NONE' }]), 0);
 });
