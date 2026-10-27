@@ -124,4 +124,118 @@ function decide(event, config, rounds) {
   return go('round', 'round');
 }
 
-module.exports = { parseConfig, DEFAULTS, decide, BOT_MARKER, ROUND_MARKER };
+function eventFromPayload(eventName, payload) {
+  const issue = payload.issue ?? {};
+  const isComment = eventName === 'issue_comment';
+  const c = payload.comment ?? {};
+  return {
+    name: eventName,
+    action: payload.action ?? '',
+    isPullRequest: Boolean(issue.pull_request),
+    issueAuthor: issue.user?.login ?? '',
+    issueLabels: (issue.labels ?? []).map((l) => l.name),
+    labelAdded: eventName === 'issues' ? (payload.label?.name ?? null) : null,
+    comment: isComment
+      ? {
+          body: c.body ?? '',
+          author: c.user?.login ?? '',
+          authorType: c.user?.type ?? '',
+          association: c.author_association ?? '',
+        }
+      : null,
+  };
+}
+
+function countRounds(comments) {
+  return comments.filter((c) => ROUND_MARKER.test(c.body ?? '')).length;
+}
+
+function formatOutputs(decision, config, rounds) {
+  const outputs = {
+    go: decision.go,
+    mode: decision.mode ?? '',
+    reason: decision.reason,
+    round: rounds + 1,
+    round_cap: config.roundCap,
+    final_round: rounds + 1 >= config.roundCap,
+    label_bug: config.labels.bug,
+    label_feature: config.labels.feature,
+    label_ready: config.labels.ready,
+    label_stop: config.labels.stop,
+    label_done: config.labels.done,
+  };
+  return Object.entries(outputs)
+    .map(([k, v]) => `${k}=${String(v).replace(/[\r\n]/g, '')}\n`)
+    .join('');
+}
+
+function run({ eventName, payload, configText, comments }) {
+  const { config } = parseConfig(configText);
+  const event = eventFromPayload(eventName, payload);
+  const rounds = countRounds(comments);
+  return formatOutputs(decide(event, config, rounds), config, rounds);
+}
+
+const API = 'https://api.github.com';
+
+function headers(token) {
+  return {
+    Authorization: `Bearer ${token}`,
+    Accept: 'application/vnd.github+json',
+    'X-GitHub-Api-Version': '2022-11-28',
+    'User-Agent': 'issue-bot-prefilter',
+  };
+}
+
+async function fetchConfigText(repo, token) {
+  const res = await fetch(`${API}/repos/${repo}/contents/.github/issue-bot.yml`, { headers: headers(token) });
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error(`config fetch failed: HTTP ${res.status}`);
+  const body = await res.json();
+  return Buffer.from(body.content ?? '', 'base64').toString('utf8');
+}
+
+async function fetchComments(repo, number, token) {
+  const comments = [];
+  let url = `${API}/repos/${repo}/issues/${number}/comments?per_page=100`;
+  while (url) {
+    const res = await fetch(url, { headers: headers(token) });
+    if (!res.ok) throw new Error(`comments fetch failed: HTTP ${res.status}`);
+    comments.push(...(await res.json()));
+    const next = /<([^>]+)>;\s*rel="next"/.exec(res.headers.get('link') ?? '');
+    url = next ? next[1] : null;
+  }
+  return comments;
+}
+
+async function main() {
+  const fs = require('node:fs');
+  const outputPath = process.env.GITHUB_OUTPUT;
+  try {
+    const eventName = process.env.GITHUB_EVENT_NAME;
+    const payload = JSON.parse(fs.readFileSync(process.env.GITHUB_EVENT_PATH, 'utf8'));
+    const repo = process.env.GITHUB_REPOSITORY;
+    const token = process.env.GITHUB_TOKEN;
+
+    const configText = await fetchConfigText(repo, token);
+    const comments = await fetchComments(repo, payload.issue.number, token);
+
+    const { warnings } = parseConfig(configText);
+    for (const w of warnings) console.log(`issue-bot prefilter warning: ${w}`);
+
+    const out = run({ eventName, payload, configText, comments });
+    const get = (k) => new RegExp(`^${k}=(.*)$`, 'm').exec(out)[1];
+    console.log(`issue-bot prefilter: go=${get('go')} mode=${get('mode')} reason=${get('reason')} rounds=${countRounds(comments)}`);
+    fs.appendFileSync(outputPath, out);
+  } catch (err) {
+    console.log(`issue-bot prefilter error: ${err.message}`);
+    fs.appendFileSync(outputPath, 'go=false\nreason=prefilter-error\n');
+  }
+}
+
+if (require.main === module) main();
+
+module.exports = {
+  parseConfig, DEFAULTS, decide, BOT_MARKER, ROUND_MARKER,
+  eventFromPayload, countRounds, formatOutputs, run,
+};
