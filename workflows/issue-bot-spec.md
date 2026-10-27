@@ -8,9 +8,20 @@ on:
     name: spec
     events: [issue_comment]
   status-comment: false
+  steps:
+    - name: Spec date
+      id: spec_date
+      env:
+        COMMENT_CREATED_AT: ${{ github.event.comment.created_at }}
+      run: echo "date=${COMMENT_CREATED_AT%%T*}" >> "$GITHUB_OUTPUT"
+jobs:
+  pre-activation:
+    outputs:
+      spec_date: ${{ steps.spec_date.outputs.date }}
 concurrency:
   group: "issue-bot-spec-${{ github.event.issue.number }}"
   cancel-in-progress: false
+  queue: max
 permissions:
   contents: read
   issues: read
@@ -127,7 +138,10 @@ and `authorAssociation` of each.
 - A comment is a **bot comment** only when both are true: its text
   contains `gh-aw-workflow-id: issue-bot` or
   `gh-aw-workflow-id: issue-bot-spec`, and its author is a bot account or
-  has author association `OWNER`, `MEMBER`, or `COLLABORATOR`. The newest
+  has author association `OWNER`, `MEMBER`, or `COLLABORATOR`. The bot
+  usually posts as `github-actions` (`gh` shows `github-actions`, the API
+  `github-actions[bot]`), often with author association `NONE`; that
+  author is a bot account. The newest
   bot comment whose marker is `gh-aw-workflow-id: issue-bot` (not
   `issue-bot-spec`) is the conversation bot's latest understanding and open
   gaps. Use it as a summary, but its _(guess)_ items stay guesses, not
@@ -153,7 +167,28 @@ If it is other, post one short comment, for example "`/spec` applies to
 bugs and features. This issue reads as a support question, so I wrote no
 spec." Add no label, write no file, and stop.
 
-## Step 4: Read the code
+## Step 4: Feature: check for an existing spec pull request
+
+Skip this step for a bug. For a feature, do it now, before reading code or
+drafting anything:
+
+```bash
+gh pr list --repo ${{ github.repository }} --state all --limit 1000 --json number,title,state --jq '.[] | select(.title | startswith("[spec] #${{ github.event.issue.number }}:")) | "\(.number) \(.state)"'
+```
+
+Each printed line is a spec pull request for this issue: its number and
+its state, `OPEN`, `MERGED`, or `CLOSED`.
+
+- If any is `OPEN`, post one comment of one line linking it by number, for
+  example "A spec PR for this issue is already open: #123. Revise it
+  through review there." Write no files, create no pull request, add no
+  label, and stop.
+- Otherwise, if any is `MERGED`, post one comment of one line linking it
+  by number, for example "The spec for this issue already landed in
+  #123." Write no files, create no pull request, add no label, and stop.
+- Otherwise (nothing printed, or only `CLOSED` pull requests), continue.
+
+## Step 5: Read the code
 
 Use `grep`, `find`, `ls`, `cat`, `head`, `wc`, `git log`, and `git blame` to
 find what the issue is about: the affected module, existing behavior and
@@ -162,7 +197,7 @@ before you write; the artifact must come from the repository, not from a
 generic checklist. Stop exploring once more reading would not change the
 artifact.
 
-## Step 5: Draft, then run the fresh-reader check
+## Step 6: Draft, then run the fresh-reader check
 
 Draft the artifact from the whole thread: the issue, every answer, and the
 maintainer's direction. Use the default issue coverage (or the
@@ -177,16 +212,16 @@ anyone anything. For each thing that builder would still need:
 - Otherwise write it as an open gap, in the place the format gives for
   gaps. Never invent an answer.
 
-## Step 6: Bug
+## Step 7: Bug
 
 1. Find the original report.
-   - If the current issue body contains a `<details>` block whose
-     `<summary>` is `Original report`, this issue was rewritten by an
-     earlier `/spec`. Copy that whole block exactly as it is. Do not wrap
-     it in another Original report.
-   - Otherwise the current issue body is the original report. Put it in
-     the Original report section verbatim, applying the 20000-character
-     rule.
+   - If the issue carries the done label and the current issue body
+     contains a `<details>` block whose `<summary>` is `Original report`,
+     this issue was rewritten by an earlier `/spec`. Copy that whole block
+     exactly as it is. Do not wrap it in another Original report.
+   - Otherwise, even if the body contains such a block, the current issue
+     body is the original report. Put it in the Original report section
+     verbatim, applying the 20000-character rule.
 2. Write the bug report as the "Bug report" format describes, with the
    original report block last. Copy nothing else from an earlier rewrite:
    no footers, no attribution lines, no HTML comments. gh-aw adds its own.
@@ -200,20 +235,11 @@ anyone anything. For each thing that builder would still need:
 
 Write no files and open no pull request for a bug.
 
-## Step 7: Feature
+## Step 8: Feature
 
-### 7a. Check for an existing spec pull request
+You already checked for an existing spec pull request in Step 4.
 
-```bash
-gh pr list --repo ${{ github.repository }} --state open --limit 200 --json number,title --jq '.[] | select(.title | startswith("[spec] #${{ github.event.issue.number }}:")) | .number'
-```
-
-If this prints a number, a spec for this issue is already open. Post one
-comment of one line linking it by number, for example "A spec PR for this
-issue is already open: #123. Revise it through review there." Write no
-files, create no pull request, add no label, and stop.
-
-### 7b. Pick the format
+### 8a. Pick the format
 
 Use the first rule that applies:
 
@@ -222,15 +248,16 @@ Use the first rule that applies:
 3. `ls -d openspec` succeeds: OpenSpec.
 4. Otherwise: Spec Kit.
 
-### 7c. Write the spec files
+### 8b. Write the spec files
 
 Write the files exactly as the chosen format describes, with the edit tool.
 Write only under `specs/` (Spec Kit) or `openspec/changes/` (OpenSpec).
 Change nothing else in the repository: any other file makes the pull
-request fail. For a Spec Kit `Created` date, use the date part of the
-`/spec` comment's `createdAt`.
+request fail. For a Spec Kit `Created` date, use
+`${{ needs.pre_activation.outputs.spec_date }}`, the date of the `/spec`
+comment.
 
-### 7d. Open the pull request
+### 8c. Open the pull request
 
 Send `create_pull_request` with:
 
@@ -238,7 +265,7 @@ Send `create_pull_request` with:
   issue title exactly as `gh issue view` returned it. gh-aw prepends
   `[spec]` and a space, so the final title is
   `[spec] #${{ github.event.issue.number }}: <issue title>`. Do not add
-  `[spec]` yourself. The existing-PR check in 7a depends on this title.
+  `[spec]` yourself. The existing-PR check in Step 4 depends on this title.
   Titles are capped at 128 characters: if yours would be longer than 115,
   shorten the issue title part and keep the
   `#${{ github.event.issue.number }}:` start unchanged.
@@ -263,7 +290,7 @@ Never write "Fixes", "Closes", "Resolves", or any other closing keyword
 before the issue reference, anywhere in the pull request. The issue stays
 open until the work is built.
 
-### 7e. Label and comment
+### 8d. Label and comment
 
 1. Send one `add_labels` call with the done label, plus the feature label if
    the issue does not carry it.

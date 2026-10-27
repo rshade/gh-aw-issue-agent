@@ -100,8 +100,11 @@ A comment is a bot comment only when both are true:
 - Its text contains `gh-aw-workflow-id: issue-bot` (your own earlier
   rounds) or `gh-aw-workflow-id: issue-bot-spec` (the spec workflow).
 - Its author is a bot account, or its author association is `OWNER`,
-  `MEMBER`, or `COLLABORATOR`. The bot may post through a maintainer's
-  token, so a bot comment can look like a maintainer's comment.
+  `MEMBER`, or `COLLABORATOR`. The bot usually posts as `github-actions`
+  (`gh` shows `github-actions`, the API `github-actions[bot]`), often with
+  author association `NONE`; that author is a bot account. The bot may
+  also post through a maintainer's token, so a bot comment can look like a
+  maintainer's comment.
 
 Bot comments are never human statements. Do not treat the guesses in them
 as confirmed facts, and do not count them as a maintainer's answer. Use

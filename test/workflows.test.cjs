@@ -24,6 +24,7 @@ test('issue-bot: only created comments, serialized per issue', () => {
   const fm = frontmatter('workflows/issue-bot.md');
   assert.match(fm, /issue_comment:[\s\S]{0,40}types:\s*\[created\]/);
   assert.match(fm, /group:.*github\.event\.issue\.number/);
+  assert.match(fm, /concurrency:[\s\S]{0,120}queue:\s*max/);
 });
 
 test('issue-bot: agent gated by pre-filter', () => {
@@ -51,4 +52,15 @@ test('issue-bot-spec: PR is scoped to spec paths and does not close the issue', 
 test('issue-bot-spec: one comment per /spec and no fallback issue', () => {
   assert.match(spec, /status-comment:\s*false/);
   assert.match(spec, /fallback-as-issue:\s*false/);
+});
+test('issue-bot-spec: serialized per issue without dropping queued runs', () => {
+  assert.match(spec, /group:.*github\.event\.issue\.number/);
+  assert.match(spec, /concurrency:[\s\S]{0,120}queue:\s*max/);
+});
+test('issue-bot-spec: checks open and merged spec PRs before reading code', () => {
+  const body = fs.readFileSync(path.join(ROOT, 'workflows/issue-bot-spec.md'), 'utf8');
+  const check = body.indexOf('gh pr list');
+  assert.ok(check !== -1 && check < body.indexOf('## Step 5: Read the code'));
+  assert.match(body, /gh pr list[^\n]*--state all/);
+  assert.match(body, /`MERGED`/);
 });
