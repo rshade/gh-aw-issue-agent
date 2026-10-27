@@ -44,6 +44,8 @@ not.
   `gh-aw-agentic-workflow: ..., workflow_id: <workflow>, ...`, not
   `gh-aw-workflow-id:`. The pre-filter, both prompts and
   `test/e2e/scenarios.sh` accept all three forms; keep them in sync.
+  `gh --jq` is gojq on RE2, which rejects lookahead: the e2e copy ends
+  each form with `([^\w-]|$)` where the JavaScript uses `(?![\w-])`.
 - Agents must call `noop` when they post nothing, or the run fails.
 - `status-comment: false` keeps `/spec` to one comment.
 - A local `gh aw add ./path` does not copy imports or resources, so
