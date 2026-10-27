@@ -9,8 +9,9 @@ issues into specs. See `README.md` for users and
 - `make check` runs `test`, `compile` and `lint` (markdownlint).
 - `make smoke` installs the workflows into a temp repo with `gh aw add` and
   runs `gh aw compile --strict`. No network or auth beyond local `gh aw add`.
-- `make e2e` runs the scenarios against a real demo repo. It costs Copilot
-  credits and is never run in CI.
+- `make e2e` (added with the e2e suite, not yet present) will run the
+  scenarios against a real demo repo. It costs Copilot credits and is never
+  run in CI.
 
 ## Layout
 
@@ -23,8 +24,9 @@ issues into specs. See `README.md` for users and
 - `test/`: `node --test` unit tests.
 - `.github/workflows/ci.yml`: plain Actions CI, not part of the package.
 
-Edit workflow sources under `workflows/`, not `.github/workflows/`. Lock
-files (`*.lock.yml`) are not committed here.
+Edit workflow sources under `workflows/`, not `.github/workflows/`.
+Consumers commit the generated lock files (`*.lock.yml`); this repo does
+not.
 
 ## gh-aw gotchas
 
@@ -39,3 +41,13 @@ files (`*.lock.yml`) are not committed here.
 - `status-comment: false` keeps `/spec` to one comment.
 - A local `gh aw add ./path` does not copy imports or resources, so
   `scripts/install-smoke.sh` copies `workflows/shared/` itself.
+- Concurrency defaults to `queue: single`, which replaces older pending
+  runs; both workflows set `queue: max` so no queued comment is dropped.
+- Prompt bodies accept only allowlisted expressions:
+  `github.event.comment.created_at` is rejected. Surface such values
+  through an `on.steps` step output and `jobs.pre-activation.outputs`.
+- The pre-filter engages an issue only once a counted round exists, and
+  reads current labels from the API, not the event payload.
+- Do not add the pre-filter to `aw.yml` `resources` as well as workflow
+  frontmatter `resources`: `gh aw add` reportedly errors when a non-markdown
+  resource already exists at its destination (unverified without a push).

@@ -12,10 +12,10 @@ artifact.
 2. **First reply.** One comment with its understanding (guesses marked as
    guesses), a few code-grounded questions each with a proposed answer, and
    the available commands.
-3. **Back and forth.** Each human comment from the filer or a maintainer
-   starts a round. The bot posts one new comment with the updated
-   understanding and only the remaining questions. Earlier bot comments are
-   hidden as outdated.
+3. **Back and forth.** Each human comment starts a round, whether it comes
+   from the filer, a maintainer, or anyone else. The bot posts one new
+   comment with the updated understanding and only the remaining
+   questions. Earlier bot comments are hidden as outdated.
 4. **Ready.** When nothing important is left that the thread could answer,
    or the round cap is reached, the bot adds `spec-ready`. A well-written
    issue skips the questions.
@@ -28,6 +28,12 @@ artifact.
      request.
 
 Unanswered items stay visible as open gaps. They never block `spec-ready`.
+
+The bot engages an issue by posting its first round. Comments on issues it
+never engaged start nothing. That covers issues opened before the install
+and issues it judged to be neither a bug nor a feature. To engage an
+existing issue, add the `trigger-label` label (default `needs-brainstorm`),
+in either trigger mode.
 
 ## Install
 
@@ -80,7 +86,7 @@ the default. See [examples/issue-bot.yml](examples/issue-bot.yml).
 
 | Key | Default | Values |
 | --- | --- | --- |
-| `trigger` | `all` | `all` (every new issue) or `label` (only when `trigger-label` is added) |
+| `trigger` | `all` | `all` (every new issue) or `label` (only when `trigger-label` is added; the label engages an issue in both modes) |
 | `trigger-label` | `needs-brainstorm` | Any label name |
 | `round-cap` | `3` | Integer 1 to 10 |
 | `spec-format` | `auto` | `auto`, `spec-kit`, `openspec` |
@@ -115,8 +121,19 @@ issues from non-collaborators on public repos. They stay safe because:
 - permissions are read-only and the agent never holds a write token,
 - all writes go through gh-aw safe outputs (comments, labels, one issue
   update, one pull request limited to `specs/**` and `openspec/changes/**`),
-- a pre-filter skips noise, pull requests, the bot's own comments and
-  stopped issues before the agent runs.
+- a pre-filter skips noise, pull requests, the bot's own comments, issues
+  opened by bots, issues the bot never engaged, and stopped issues before
+  the agent runs.
+
+Two limits to know:
+
+- The label safe outputs are not restricted to the bot's label names, and
+  `create-if-missing` is on. The prompts name the only labels to use, but
+  a manipulated run could add up to 2 labels (creating them if needed) and
+  remove 1 per run.
+- gh-aw sanitizes every body it posts, including mentions and links. The
+  Original report kept in a rewritten bug may therefore differ from what
+  the filer typed. The issue's edit history keeps the exact text.
 
 ## Development
 
