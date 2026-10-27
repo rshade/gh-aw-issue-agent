@@ -1,0 +1,7 @@
+manifest-version: "1"
+name: issue-bot
+description: Turns thin GitHub issues into specs through a short in-thread conversation, then a maintainer's /spec writes the spec PR or bug report.
+min-version: v0.93.5
+includes:
+  - workflows/issue-bot.md
+  - workflows/issue-bot-spec.md
