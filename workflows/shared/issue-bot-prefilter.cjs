@@ -146,8 +146,14 @@ function eventFromPayload(eventName, payload) {
   };
 }
 
+/**
+ * @param {{ body?: string, user?: { type?: string } | null, author_association?: string }[]} comments
+ *   raw REST API comment objects
+ */
 function countRounds(comments) {
-  return comments.filter((c) => ROUND_MARKER.test(c.body ?? '')).length;
+  return comments.filter((c) =>
+    ROUND_MARKER.test(c.body ?? '') &&
+    (c.user?.type === 'Bot' || MAINTAINER_ASSOCIATIONS.has(c.author_association))).length;
 }
 
 function formatOutputs(decision, config, rounds) {

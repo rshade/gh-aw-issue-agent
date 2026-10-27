@@ -39,9 +39,24 @@ test('null comment user and body normalize to empty strings', () => {
   assert.deepEqual(ev.comment, { body: '', author: '', authorType: '', association: '' });
 });
 
+const MARK = '<!-- gh-aw-workflow-id: issue-bot -->';
+
 test('counts only marked comments', () => {
-  assert.equal(countRounds([{ body: 'x <!-- gh-aw-workflow-id: issue-bot -->' },
-    { body: 'human' }, { body: '<!-- gh-aw-workflow-id: issue-bot-spec -->' }]), 1);
+  assert.equal(countRounds([{ body: `x ${MARK}`, user: { type: 'Bot' } },
+    { body: 'human', user: { type: 'Bot' } },
+    { body: '<!-- gh-aw-workflow-id: issue-bot-spec -->', user: { type: 'Bot' } }]), 1);
+});
+
+test('a marker from a non-maintainer user is not counted', () => {
+  assert.equal(countRounds([{ body: MARK, user: { type: 'User' }, author_association: 'NONE' }]), 0);
+});
+
+test('a marker from a collaborator user is counted', () => {
+  assert.equal(countRounds([{ body: MARK, user: { type: 'User' }, author_association: 'COLLABORATOR' }]), 1);
+});
+
+test('a marker comment with no user does not throw', () => {
+  assert.equal(countRounds([{ body: MARK, user: null, author_association: 'NONE' }]), 0);
 });
 
 test('outputs include final_round and configured labels', () => {
