@@ -1,4 +1,4 @@
-.PHONY: test compile lint check smoke
+.PHONY: test compile lint check smoke e2e
 
 test:
 	node --test test/*.test.cjs
@@ -13,3 +13,6 @@ check: test compile lint
 
 smoke:
 	./scripts/install-smoke.sh
+
+e2e:
+	bash test/e2e/scenarios.sh $(SCENARIOS)

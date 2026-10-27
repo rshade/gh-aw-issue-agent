@@ -9,9 +9,11 @@ issues into specs. See `README.md` for users and
 - `make check` runs `test`, `compile` and `lint` (markdownlint).
 - `make smoke` installs the workflows into a temp repo with `gh aw add` and
   runs `gh aw compile --strict`. No network or auth beyond local `gh aw add`.
-- `make e2e` (added with the e2e suite, not yet present) will run the
-  scenarios against a real demo repo. It costs Copilot credits and is never
-  run in CI.
+- `make e2e [SCENARIOS="stop queue"]` runs `test/e2e/scenarios.sh` against
+  the demo repo (`DEMO_REPO`, `TIMEOUT`, `POLL` env). It costs Copilot credits
+  and is never run in CI or `check`. The `gh` token needs Actions read access
+  (run polling) and contents write (config scenarios). Config scenarios
+  restore `.github/issue-bot.yml` in a trap.
 
 ## Layout
 
