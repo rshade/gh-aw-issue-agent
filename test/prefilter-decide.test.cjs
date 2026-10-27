@@ -8,6 +8,7 @@ const base = {
   action: 'created',
   isPullRequest: false,
   issueAuthor: 'alice',
+  issueAuthorType: 'User',
   issueLabels: ['feature'],
   labelAdded: null,
   comment: {
@@ -57,6 +58,26 @@ test('rule 5: labeled with trigger label starts exactly one round', () => {
                labelAdded: 'needs-brainstorm' };
   assert.deepEqual(decide(ev, cfg, 0), go('first', 'label-trigger'));
   assert.equal(decide(ev, cfg, 1).go, false);
+});
+
+test('labeled with trigger label starts a first round in trigger all too', () => {
+  const ev = { ...base, name: 'issues', action: 'labeled', comment: null,
+               labelAdded: 'needs-brainstorm' };
+  assert.deepEqual(decide(ev, DEFAULTS, 0), go('first', 'label-trigger'));
+  assert.deepEqual(decide(ev, DEFAULTS, 1), skip('issue-event'));
+});
+
+test('issues opened by a bot account are skipped', () => {
+  const ev = { ...base, name: 'issues', action: 'opened', comment: null,
+               issueAuthorType: 'Bot' };
+  assert.deepEqual(decide(ev, DEFAULTS, 0), skip('bot-author'));
+});
+
+test('trigger label on a bot-opened issue is skipped', () => {
+  const ev = { ...base, name: 'issues', action: 'labeled', comment: null,
+               labelAdded: 'needs-brainstorm', issueAuthorType: 'Bot' };
+  assert.deepEqual(decide(ev, { ...DEFAULTS, trigger: 'label' }, 0), skip('bot-author'));
+  assert.deepEqual(decide(ev, DEFAULTS, 0), skip('bot-author'));
 });
 
 test('rule 5: labeled with another label does not start', () => {
@@ -133,7 +154,7 @@ test('/stopping is not /stop', () => {
 
 test('rule 11: noise comments are skipped', () => {
   for (const body of ['+1', '👍', 'Bump!', 'Any updates?', 'me too', 'Same.', 'following',
-    'subscribe', '   ', '']) {
+    'subscribe', '   ', '', 'Thanks!', 'Thank you.', 'ty', ':+1:', 'thx']) {
     assert.deepEqual(decide(withComment({ body }), DEFAULTS, 1), skip('noise'), body);
   }
 });
@@ -143,9 +164,20 @@ test('details after "me too" are not noise', () => {
   assert.equal(decide(ev, DEFAULTS, 1).mode, 'round');
 });
 
-test('rule 12: issue without bug or feature label is not engaged', () => {
-  const ev = { ...base, issueLabels: ['question'] };
-  assert.deepEqual(decide(ev, DEFAULTS, 1), skip('not-engaged'));
+test('thanks with details is not noise', () => {
+  assert.equal(decide(withComment({ body: 'thanks, it fails on Windows too' }), DEFAULTS, 1).mode, 'round');
+});
+
+test('rule 12: a comment before any bot round is not engaged', () => {
+  const labelMode = { ...DEFAULTS, trigger: 'label' };
+  assert.deepEqual(decide({ ...base, issueLabels: ['bug'] }, labelMode, 0), skip('not-engaged'));
+  assert.deepEqual(decide({ ...base, issueLabels: ['feature'] }, DEFAULTS, 0), skip('not-engaged'));
+  assert.deepEqual(decide({ ...base, issueLabels: ['question'] }, DEFAULTS, 0), skip('not-engaged'));
+});
+
+test('rule 12: after a bot round the type label does not matter', () => {
+  assert.deepEqual(decide({ ...base, issueLabels: [] }, DEFAULTS, 1), go('round', 'round'));
+  assert.deepEqual(decide({ ...base, issueLabels: ['question'] }, DEFAULTS, 2), go('round', 'round'));
 });
 
 test('rule 13: round cap reached', () => {

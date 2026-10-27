@@ -9,10 +9,10 @@ const {
 test('maps an issue_comment payload', () => {
   const ev = eventFromPayload('issue_comment', {
     action: 'created',
-    issue: { user: { login: 'alice' }, labels: [{ name: 'bug' }], pull_request: undefined },
+    issue: { user: { login: 'alice', type: 'User' }, labels: [{ name: 'bug' }], pull_request: undefined },
     comment: { body: 'hi', user: { login: 'bob', type: 'User' }, author_association: 'NONE' } });
   assert.deepEqual(ev, { name: 'issue_comment', action: 'created', isPullRequest: false,
-    issueAuthor: 'alice', issueLabels: ['bug'], labelAdded: null,
+    issueAuthor: 'alice', issueAuthorType: 'User', issueLabels: ['bug'], labelAdded: null,
     comment: { body: 'hi', author: 'bob', authorType: 'User', association: 'NONE' } });
 });
 
@@ -35,6 +35,7 @@ test('null comment user and body normalize to empty strings', () => {
     issue: { user: null, labels: null },
     comment: { body: null, user: null, author_association: null } });
   assert.equal(ev.issueAuthor, '');
+  assert.equal(ev.issueAuthorType, '');
   assert.deepEqual(ev.issueLabels, []);
   assert.deepEqual(ev.comment, { body: '', author: '', authorType: '', association: '' });
 });
@@ -81,4 +82,24 @@ test('run maps a noise comment to go=false', () => {
       comment: { body: '+1', user: { login: 'b', type: 'User' }, author_association: 'NONE' } } });
   assert.match(out, /^go=false$/m);
   assert.match(out, /^reason=noise$/m);
+});
+
+const roundPayload = (labels) => ({ action: 'created',
+  issue: { user: { login: 'a' }, labels: labels.map((name) => ({ name })) },
+  comment: { body: 'It fails on v2', user: { login: 'a', type: 'User' }, author_association: 'NONE' } });
+const oneRound = [{ body: MARK, user: { type: 'Bot' } }];
+
+test('run uses current labels over stale payload labels', () => {
+  const stopped = run({ eventName: 'issue_comment', configText: null, comments: oneRound,
+    payload: roundPayload(['bug']), currentLabels: ['bug', 'no-bot'] });
+  assert.match(stopped, /^reason=stopped$/m);
+  const resumed = run({ eventName: 'issue_comment', configText: null, comments: oneRound,
+    payload: roundPayload(['bug', 'no-bot']), currentLabels: ['bug'] });
+  assert.match(resumed, /^reason=round$/m);
+});
+
+test('run falls back to payload labels without current labels', () => {
+  const out = run({ eventName: 'issue_comment', configText: null, comments: oneRound,
+    payload: roundPayload(['bug', 'spec-drafted']) });
+  assert.match(out, /^reason=spec-drafted$/m);
 });

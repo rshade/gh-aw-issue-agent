@@ -76,7 +76,7 @@ const ROUND_MARKER = /gh-aw-workflow-id:\s*issue-bot(?![\w-])/;
 
 const NOISE = new Set([
   '+1', '👍', 'bump', 'anyupdate', 'anyupdates', 'metoo', 'same', 'samehere',
-  'following', 'subscribe',
+  'following', 'subscribe', 'thanks', 'thankyou', 'ty', ':+1:', 'thx',
 ]);
 const MAINTAINER_ASSOCIATIONS = new Set(['OWNER', 'MEMBER', 'COLLABORATOR']);
 
@@ -95,12 +95,14 @@ function decide(event, config, rounds) {
   if (labels.includes(config.labels.stop)) return skip('stopped');
 
   if (event.name === 'issues') {
-    if (event.action === 'opened' && config.trigger === 'all') return go('first', 'opened');
-    if (event.action === 'labeled' && config.trigger === 'label' &&
-        event.labelAdded === config.triggerLabel && rounds === 0) {
-      return go('first', 'label-trigger');
+    let start = null;
+    if (event.action === 'opened' && config.trigger === 'all') start = 'opened';
+    if (event.action === 'labeled' && event.labelAdded === config.triggerLabel && rounds === 0) {
+      start = 'label-trigger';
     }
-    return skip('issue-event');
+    if (!start) return skip('issue-event');
+    if (event.issueAuthorType === 'Bot') return skip('bot-author');
+    return go('first', start);
   }
 
   const { comment } = event;
@@ -116,9 +118,7 @@ function decide(event, config, rounds) {
   }
 
   if (isNoise(comment.body)) return skip('noise');
-  if (!labels.includes(config.labels.bug) && !labels.includes(config.labels.feature)) {
-    return skip('not-engaged');
-  }
+  if (rounds === 0) return skip('not-engaged');
   if (rounds >= config.roundCap) return skip('round-cap');
   if (labels.includes(config.labels.ready)) return go('post-ready', 'post-ready');
   return go('round', 'round');
@@ -133,6 +133,7 @@ function eventFromPayload(eventName, payload) {
     action: payload.action ?? '',
     isPullRequest: Boolean(issue.pull_request),
     issueAuthor: issue.user?.login ?? '',
+    issueAuthorType: issue.user?.type ?? '',
     issueLabels: (issue.labels ?? []).map((l) => l.name),
     labelAdded: eventName === 'issues' ? (payload.label?.name ?? null) : null,
     comment: isComment
@@ -175,9 +176,14 @@ function formatOutputs(decision, config, rounds) {
     .join('');
 }
 
-function run({ eventName, payload, configText, comments }) {
+/**
+ * @param {string[]} [currentLabels] the issue's labels fetched at run time;
+ *   when given they replace the payload's labels, which may be stale
+ */
+function run({ eventName, payload, configText, comments, currentLabels }) {
   const { config } = parseConfig(configText);
   const event = eventFromPayload(eventName, payload);
+  if (Array.isArray(currentLabels)) event.issueLabels = currentLabels;
   const rounds = countRounds(comments);
   return formatOutputs(decide(event, config, rounds), config, rounds);
 }
@@ -199,6 +205,13 @@ async function fetchConfigText(repo, token) {
   if (!res.ok) throw new Error(`config fetch failed: HTTP ${res.status}`);
   const body = await res.json();
   return Buffer.from(body.content ?? '', 'base64').toString('utf8');
+}
+
+async function fetchCurrentLabels(repo, number, token) {
+  const res = await fetch(`${API}/repos/${repo}/issues/${number}`, { headers: headers(token) });
+  if (!res.ok) throw new Error(`issue fetch failed: HTTP ${res.status}`);
+  const body = await res.json();
+  return (body.labels ?? []).map((l) => (typeof l === 'string' ? l : l.name));
 }
 
 async function fetchComments(repo, number, token) {
@@ -225,11 +238,12 @@ async function main() {
 
     const configText = await fetchConfigText(repo, token);
     const comments = await fetchComments(repo, payload.issue.number, token);
+    const currentLabels = await fetchCurrentLabels(repo, payload.issue.number, token);
 
     const { warnings } = parseConfig(configText);
     for (const w of warnings) console.log(`issue-bot prefilter warning: ${w}`);
 
-    const out = run({ eventName, payload, configText, comments });
+    const out = run({ eventName, payload, configText, comments, currentLabels });
     const get = (k) => new RegExp(`^${k}=(.*)$`, 'm').exec(out)[1];
     console.log(`issue-bot prefilter: go=${get('go')} mode=${get('mode')} reason=${get('reason')} rounds=${countRounds(comments)}`);
     fs.appendFileSync(outputPath, out);
