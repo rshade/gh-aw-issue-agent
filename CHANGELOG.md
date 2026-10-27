@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `aw.yml` package manifest for `gh aw add rshade/gh-aw-issue-agent`.
 - Optional `.github/issue-bot.yml` config, with `examples/issue-bot.yml`.
 - Install smoke test (`make smoke`) and CI.
+- MIT `LICENSE`.
 - The trigger label engages any issue in either trigger mode, including
   issues opened before the install. Comments on issues the bot never
   engaged start nothing.

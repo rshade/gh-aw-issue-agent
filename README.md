@@ -147,4 +147,4 @@ package: `aw.yml` `includes` lists only the two workflows.
 
 ## License
 
-See the repository for license terms.
+MIT. See [LICENSE](LICENSE).
