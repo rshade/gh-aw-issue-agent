@@ -48,3 +48,7 @@ test('issue-bot-spec: PR is scoped to spec paths and does not close the issue', 
   assert.match(spec, /allowed-files:.*"openspec\/changes\/\*\*"/);
   assert.match(spec, /auto-close-issue:\s*false/);
 });
+test('issue-bot-spec: one comment per /spec and no fallback issue', () => {
+  assert.match(spec, /status-comment:\s*false/);
+  assert.match(spec, /fallback-as-issue:\s*false/);
+});

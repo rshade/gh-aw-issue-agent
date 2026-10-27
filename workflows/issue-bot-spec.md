@@ -7,6 +7,7 @@ on:
   slash_command:
     name: spec
     events: [issue_comment]
+  status-comment: false
 concurrency:
   group: "issue-bot-spec-${{ github.event.issue.number }}"
   cancel-in-progress: false
@@ -43,6 +44,7 @@ safe-outputs:
     if-no-changes: error
     auto-close-issue: false
     allowed-files: ["specs/**", "openspec/changes/**"]
+    fallback-as-issue: false
 ---
 
 # Issue bot: spec
