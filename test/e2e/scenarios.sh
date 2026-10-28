@@ -327,7 +327,7 @@ scn_label-mode() {
 }
 
 scn_queue() {
-  local n created deadline
+  local n created deadline since got c
   CUR=queue
   n=$(new_issue "Filter logs by severity" "$THIN_FEATURE_BODY") || die "new_issue failed"
   created=$(issue_created_at "$n") || die "issue_created_at failed"
@@ -339,11 +339,16 @@ scn_queue() {
     fi
     sleep 2
   done
-  post_comment "$n" "$ANSWER" >/dev/null || die "post_comment failed"
+  since=$(post_comment "$n" "$ANSWER") || die "post_comment failed"
   post_comment "$n" "+1" >/dev/null || die "post_comment failed"
-  wait_for "$TIMEOUT" bot_comments_at_least "$n" 2 || die "answer posted during an in-flight run was dropped"
   wait_for "$TIMEOUT" all_runs_done "$BOT_LOCK" "$created" || die "bot runs did not finish"
-  [[ $(bot_comments "$n") == 2 ]] || die "expected exactly 2 bot comments, got $(bot_comments "$n")"
+  # Round 1 may already have read the answer, so the queued run can rightly noop;
+  # what matters is that it ran and that some round reflects the answer.
+  got=$(agent_conclusion_since "$BOT_LOCK" "$since")
+  [[ $got == success ]] || die "queued answer run: expected agent success, got '${got:-none}'"
+  bot_comment_bodies "$n" | grep -qi 'web log viewer' || die "no bot comment reflects the answer"
+  c=$(bot_comments "$n") || die "bot_comments failed"
+  ((c >= 1 && c <= 2)) || die "expected 1 or 2 bot comments, got $c"
   pass
 }
 
