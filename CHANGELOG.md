@@ -32,3 +32,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (`gh-aw-workflow-call-id` and `workflow_id` inside `gh-aw-agentic-workflow`)
   as well as `gh-aw-workflow-id`. Without this, replies after round 1 were
   skipped as `not-engaged` and the round cap never applied.
+- `/spec` can create the new spec directory. The spec workflow's shell
+  allowlist lacked `mkdir` and the edit tool does not create parent
+  directories, so the agent reported the task incomplete and opened no PR.

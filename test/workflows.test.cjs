@@ -64,3 +64,8 @@ test('issue-bot-spec: checks open and merged spec PRs before reading code', () =
   assert.match(body, /gh pr list[^\n]*--state all/);
   assert.match(body, /`MERGED`/);
 });
+test('issue-bot-spec: can create spec directories before writing files', () => {
+  assert.match(spec, /bash:\s*\[[^\]]*\bmkdir\b/);
+  const body = fs.readFileSync(path.join(ROOT, 'workflows/issue-bot-spec.md'), 'utf8');
+  assert.match(body, /mkdir -p/);
+});
