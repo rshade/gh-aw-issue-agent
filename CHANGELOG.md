@@ -35,3 +35,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `/spec` can create the new spec directory. The spec workflow's shell
   allowlist lacked `mkdir` and the edit tool does not create parent
   directories, so the agent reported the task incomplete and opened no PR.
+- An answer posted while a round was still being written is no longer
+  ignored. The bot treated only comments below its last round as new, so
+  it called `noop` on the queued answer run; it now treats every comment
+  its last round does not reflect, and always the triggering comment, as
+  new input.
