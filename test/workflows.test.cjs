@@ -69,3 +69,8 @@ test('issue-bot-spec: can create spec directories before writing files', () => {
   const body = fs.readFileSync(path.join(ROOT, 'workflows/issue-bot-spec.md'), 'utf8');
   assert.match(body, /mkdir -p/);
 });
+test('issue-bot: the triggering comment counts as new even if it predates the last round', () => {
+  const body = fs.readFileSync(path.join(ROOT, 'workflows/issue-bot.md'), 'utf8');
+  assert.match(body, /\$\{\{ github\.event\.comment\.id \}\}/);
+  assert.doesNotMatch(body, /human comments since your last\s+round/);
+});
