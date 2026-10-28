@@ -54,7 +54,7 @@ issue_body() { gh api "repos/$DEMO_REPO/issues/$1" --jq .body; }
 # Comment markers differ by gh-aw version and context; match all three forms.
 # Keep in sync with markerFor() in workflows/shared/issue-bot-prefilter.cjs.
 # shellcheck disable=SC2016
-MARKER_JQ='def marked($w): (.body // "") | test("gh-aw-workflow-id:\\s*\($w)(?![\\w-])|gh-aw-workflow-call-id:\\s*[^\\s>]*/\($w)(?![\\w-])|gh-aw-agentic-workflow:[^>]*\\bworkflow_id:\\s*\($w)(?![\\w-])");'
+MARKER_JQ='def marked($w): (.body // "") | test("gh-aw-workflow-id:\\s*\($w)([^\\w-]|$)|gh-aw-workflow-call-id:\\s*[^\\s>]*/\($w)([^\\w-]|$)|gh-aw-agentic-workflow:[^>]*\\bworkflow_id:\\s*\($w)([^\\w-]|$)");'
 
 comments_select() {
   gh api --paginate "repos/$DEMO_REPO/issues/$1/comments" --jq \
@@ -78,8 +78,16 @@ spec_comment_count() {
   grep -c . <<<"$out" || true
 }
 
-bot_comments_at_least() { (($(bot_comments "$1") >= $2)); }
-spec_comments_at_least() { (($(spec_comment_count "$1") >= $2)); }
+bot_comments_at_least() {
+  local n
+  n=$(bot_comments "$1") || return 1
+  ((n >= $2))
+}
+spec_comments_at_least() {
+  local n
+  n=$(spec_comment_count "$1") || return 1
+  ((n >= $2))
+}
 
 is_minimized() {
   # shellcheck disable=SC2016

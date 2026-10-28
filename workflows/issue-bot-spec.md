@@ -38,7 +38,7 @@ tools:
     toolsets: [default]
     min-integrity: none
   edit:
-  bash: [cat, grep, find, ls, head, wc, "git log", "git blame"]
+  bash: [cat, grep, find, ls, head, wc, mkdir, "git log", "git blame"]
 safe-outputs:
   add-comment:
     max: 1
@@ -253,6 +253,8 @@ Use the first rule that applies:
 ### 8b. Write the spec files
 
 Write the files exactly as the chosen format describes, with the edit tool.
+The edit tool does not create directories: run `mkdir -p <dir>` for each
+new directory first.
 Write only under `specs/` (Spec Kit) or `openspec/changes/` (OpenSpec).
 Change nothing else in the repository: any other file makes the pull
 request fail. For a Spec Kit `Created` date, use
